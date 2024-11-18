@@ -7,8 +7,6 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 
 app = FastAPI()
 
-shared_data = {"count": 0}
-
 redis_client = redis.Redis(host='localhost', decode_responses=True)  # Redis client connection
 
 
@@ -22,7 +20,6 @@ async def get_homepage():
 async def websocket_endpoint(websocket: WebSocket, channel: str):
     await websocket.accept()
     pubsub = redis_client.pubsub()
-    shared_data["count"] += 1
     await pubsub.subscribe(channel)  # Subscribe to the Redis channel using the parameter
     
     async def send_messages():
@@ -40,14 +37,12 @@ async def websocket_endpoint(websocket: WebSocket, channel: str):
     except Exception as e:
         print(f"WebSocket connection closed: {e}")
     finally:
-        shared_data["count"] -= 1
         send_task.cancel()  # Clean up the background task when the connection is closed
         await pubsub.unsubscribe(channel)
 
 @app.websocket("/redis/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    shared_data["count"] += 1
 
     try:
         while True:
@@ -97,9 +92,6 @@ async def websocket_endpoint(websocket: WebSocket):
     
     except Exception as e:
         print(f"WebSocket connection closed: {e}")
-    finally:
-        shared_data["count"] -= 1
-
 
 class RedisCommand(BaseModel):
     key: str
