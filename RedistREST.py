@@ -1,6 +1,5 @@
 import asyncio
 import json
-from pydantic import BaseModel
 import redis.asyncio as redis
 from fastapi import FastAPI, HTTPException, WebSocket
 from fastapi.responses import HTMLResponse, StreamingResponse
@@ -93,16 +92,12 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as e:
         print(f"WebSocket connection closed: {e}")
 
-class RedisCommand(BaseModel):
-    key: str
-    value: str = None
-
-@app.post("/redis/set/")
-async def set_key(command: RedisCommand):
-    if not command.key or not command.value:
+@app.post("/redis/set/{key}")
+async def set_key(key: str, data: dict=dict(data='NULL')):
+    if not data.get('data'):
         raise HTTPException(status_code=400, detail="Key and value must be provided")
-    await redis_client.set(command.key, command.value)
-    return {"message": f"Key '{command.key}' set to '{command.value}'"}
+    await redis_client.set(key, data.get('data'))
+    return {"message": f"Key '{key}' set to '{data.get('data')}'"}
 
 @app.get("/redis/get/{key}")
 async def get_key(key: str):
@@ -125,15 +120,10 @@ async def get_keys(pattern: str = "*"):
         return {"message": "No keys found"}
     return {"keys": keys}
 
-class PubSubMessage(BaseModel):
-    channel: str
-    message: str
-
-@app.post("/redis/pub/")
-async def publish_message(msg: PubSubMessage):
-    await redis_client.publish(msg.channel, msg.message)
-    return {"message": f"Message published to channel '{msg.channel}'"}
-
+@app.post("/redis/pub/{channel}")
+async def publish_message(channel: str, msg: dict=dict(data='NULL')):
+    await redis_client.publish(channel, msg['data'])
+    return {"message": f"Message published to channel '{channel}'"}
 
 @app.get("/redis/sub/{channel}")
 async def subscribe_to_channel(channel: str):
